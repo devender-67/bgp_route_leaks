@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ASPA route-leak playground</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=Public+Sans:wght@400;500;600&display=swap">
+<style>
+:root{--bg:#EDF1F6;--panel:#fff;--ink:#14213D;--mute:#5B6980;--line:#CBD5E1;--ok:#157A4F;--bad:#C0302A;--unk:#6B5FB5;--path:#E8A317;--acc:#2457D6;--soft:#F3F6FA}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0E1626;--panel:#16223A;--ink:#E8EEF8;--mute:#9AA8BF;--line:#2B3A57;--ok:#4CC38A;--bad:#FF6B63;--unk:#A99BFF;--path:#F2B33D;--acc:#7AA2FF;--soft:#1C2A47}}
+:root[data-theme="dark"]{--bg:#0E1626;--panel:#16223A;--ink:#E8EEF8;--mute:#9AA8BF;--line:#2B3A57;--ok:#4CC38A;--bad:#FF6B63;--unk:#A99BFF;--path:#F2B33D;--acc:#7AA2FF;--soft:#1C2A47}
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*:before,*:after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.5 "Public Sans",system-ui,sans-serif}
+header{padding:20px 20px 4px;max-width:1280px;margin:auto}
+h1{font:700 28px/1.15 "Bricolage Grotesque",Georgia,sans-serif;margin:0 0 6px}
+h2,h3{font-family:"Bricolage Grotesque",Georgia,sans-serif;margin:0 0 8px}
+h3{font-size:17px}
+header p{margin:0;color:var(--mute);max-width:70ch}
+details{margin-top:10px;max-width:80ch}
+summary{cursor:pointer;color:var(--acc);font-weight:600}
+details ol{margin:8px 0 0;padding-left:20px}
+main{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:16px;padding:12px 20px 28px;max-width:1280px;margin:auto}
+@media(max-width:900px){main{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
+.row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+button{font:inherit;font-weight:600;font-size:13px;color:var(--ink);background:var(--soft);border:1px solid var(--line);border-radius:7px;padding:6px 10px;cursor:pointer}
+button[aria-pressed="true"]{background:var(--acc);border-color:var(--acc);color:#fff}
+button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.hint{margin:10px 0 0;color:var(--mute);font-size:14px;min-height:42px}
+.hint b{color:var(--ink)}
+svg{width:100%;height:auto;display:block;background:var(--soft);border-radius:8px;touch-action:none;margin-top:10px;border:1px solid var(--line)}
+.ed{stroke:var(--mute);stroke-width:2;fill:none}.ed.pe{stroke-dasharray:6 5}
+.hit{stroke:transparent;stroke-width:18;fill:none}
+.pth{stroke:var(--path);stroke-width:7;opacity:.6;fill:none;stroke-linecap:round}
+.nd circle.b{fill:var(--panel);stroke:var(--acc);stroke-width:3}
+.nd.noaspa circle.b{stroke:var(--mute);stroke-dasharray:4 3}
+.nd.sel circle.b{fill:var(--acc)}
+.nd.sel text.n{fill:#fff}
+.nd text.n{fill:var(--ink);font:600 13px "Public Sans",sans-serif;text-anchor:middle;dominant-baseline:central;pointer-events:none}
+.nd text.t{fill:var(--mute);font:600 11px "Public Sans",sans-serif;text-anchor:middle;pointer-events:none}
+.nd circle.r{fill:none;stroke:none}
+.nd.leak circle.r{fill:none;stroke:var(--bad);stroke-width:4}
+.nd{cursor:pointer}
+.sb circle{fill:var(--path);stroke:var(--panel);stroke-width:2}
+.sb text{fill:#14213D;font:700 12px 'Public Sans',sans-serif;text-anchor:middle;dominant-baseline:central}
+.ar{fill:var(--mute)}.arp{fill:var(--path)}
+.legend{font-size:12.5px;color:var(--mute);margin:8px 0 0}
+aside{display:flex;flex-direction:column;gap:16px}
+.chips{display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin:6px 0}
+.chip{background:var(--soft);border:1px solid var(--line);border-radius:6px;padding:1px 8px;font-weight:600;font-size:13px}
+.badge{display:inline-block;font:700 20px "Bricolage Grotesque",sans-serif;padding:3px 12px;border-radius:7px;color:#fff;margin-bottom:6px}
+.v-valid{background:var(--ok)}.v-invalid{background:var(--bad)}.v-unknown{background:var(--unk)}
+:root[data-theme="dark"] .badge{color:#0E1626}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]) .badge{color:#0E1626}}
+.vd p{margin:6px 0}
+.gt{border-left:4px solid var(--line);padding:2px 10px;margin:10px 0;color:var(--ink)}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{text-align:left;padding:5px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-weight:600;color:var(--mute)}th.use{color:var(--acc)}
+.y{color:var(--ok);font-weight:600}.n{color:var(--bad);font-weight:600}.u{color:var(--unk);font-weight:600}
+label{display:flex;gap:8px;align-items:center;padding:2px 0}
+input[type=checkbox]{width:17px;height:17px}
+.note{font-size:13px;color:var(--mute);margin:6px 0}
+.sm{font-size:12px;padding:3px 8px}
+input[type=text],input[type=number]{font:inherit;font-size:13px;color:var(--ink);background:var(--soft);border:1px solid var(--line);border-radius:7px;padding:5px 8px;min-width:0}
+#ptxt{flex:1 1 140px}#asn{width:90px}
+.strip{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:10px 0}
+.nc{border:2px solid var(--line);border-radius:8px;padding:4px 10px;text-align:center;font-weight:600;font-size:13px;background:var(--soft)}
+.nc small{display:block;font-weight:500;color:var(--mute);font-size:11px}
+.nc.g{border-color:var(--ok)}.nc.r{border-color:var(--bad)}
+.steps{list-style:none;margin:0;padding:0;counter-reset:s;display:grid;gap:14px;max-width:100ch}
+.steps>li{counter-increment:s;padding-left:38px;position:relative}
+.steps>li:before{content:counter(s);position:absolute;left:0;top:0;width:26px;height:26px;border-radius:50%;background:var(--acc);color:#fff;font:700 14px "Public Sans",sans-serif;display:grid;place-items:center}
+:root[data-theme="dark"] .steps>li:before{color:#0E1626}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]) .steps>li:before{color:#0E1626}}
+.steps h3{margin:0 0 4px}.steps ul{margin:4px 0;padding-left:18px}.steps p{margin:4px 0}
+.vb{display:inline-block;color:#fff;border-radius:5px;padding:0 7px;font-weight:700;font-size:13px}
+:root[data-theme="dark"] .vb{color:#0E1626}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]) .vb{color:#0E1626}}
+</style>
+</head>
+<body>
+<header>
+<h1>ASPA route-leak playground</h1>
+<p>Build a small internet, publish ASPA records, trace a route through it and see whether it is a route leak, and why.</p>
+<details><summary>How to use this</summary><ol>
+<li>Load a scenario below, or choose <b>Add AS</b>, <b>Provider link</b> and <b>Peer link</b> to draw your own network.</li>
+<li>Select an AS with <b>Move / select</b> and tick the providers it lists in its ASPA record.</li>
+<li>Choose <b>Build path</b> and click ASes from the origin to the AS that receives the route.</li>
+<li>Read the verdict on the right. Break a record or remove one and watch the verdict change.</li></ol></details>
+</header>
+<main>
+<section class="card">
+<div class="row" id="tb" style="margin-top:10px"></div>
+<div class="row" style="margin-top:8px;font-size:13px"><label for="asn" style="padding:0">ASN for the next AS (optional):</label><input type="number" id="asn" min="1" placeholder="auto"></div>
+<p class="hint" id="hint" aria-live="polite"></p>
+<svg id="cv" viewBox="0 0 900 540" role="img" aria-label="Network of autonomous systems"></svg>
+<p class="legend">Solid arrow: customer → provider link. Dashed line: peering. Solid ring: AS publishes an ASPA. Dashed ring: no ASPA. Amber: the route path, with numbers showing the order of each announcement (step 1 is the origin sending it on). Red ring: suspected leaker.</p>
+</section>
+<aside>
+<div class="card" id="pathbox"></div>
+<div class="card vd" id="verdict"></div>
+<div class="card" id="ed"></div>
+</aside>
+<section class="card" id="aspa" style="grid-column:1/-1"></section>
+</main>
+<script>
+const $=s=>document.querySelector(s),svg=$('#cv');
+const S={manual:new Set(),nodes:[],edges:[],aspa:{},path:[],mode:'select',sel:null,pend:null,msg:''};
+let drag=null;
+const N=a=>S.nodes.find(n=>n.asn===a);
+const A=x=>'AS'+x;
+const uniq=a=>[...new Set(a)];
+function rel(a,b){for(const e of S.edges){if(e.t==='c2p'){if(e.a===a&&e.b===b)return'provider';if(e.a===b&&e.b===a)return'customer'}else if((e.a===a&&e.b===b)||(e.a===b&&e.b===a))return'peer'}return null}
+const provs=a=>S.edges.filter(e=>e.t==='c2p'&&e.a===a).map(e=>e.b);
+function hop(a,b){const r=S.aspa[a];return!r?'NA':r.has(b)?'P':'NP'}
+const nextAsn=()=>Math.max(0,...S.nodes.map(n=>n.asn))+100;
+
+/* ---------- scenarios ---------- */
+const PR={
+ leak:['Customer leak (caught)',[300,100,500,200,600],1],
+ valid:['Normal path (valid)',[300,100,200,600],1],
+ up:['Leak seen from a customer',[600,200,500,100],1],
+ unk:['Leak, few ASPAs (unknown)',[300,100,500,200,600],0]};
+function base(){
+ S.nodes=[[100,250,90],[200,650,90],[300,120,330],[500,450,330],[600,780,330]].map(([asn,x,y])=>({asn,x,y}));
+ S.edges=[{a:300,b:100,t:'c2p'},{a:500,b:100,t:'c2p'},{a:500,b:200,t:'c2p'},{a:600,b:200,t:'c2p'},{a:100,b:200,t:'p2p'}];
+}
+function load(k){base();const[,p,full]=PR[k];S.aspa={};
+ S.nodes.forEach(n=>{if(full||n.asn===300||n.asn===600)S.aspa[n.asn]=new Set(provs(n.asn))});
+ S.manual=new Set();S.path=p.slice();S.sel=null;S.pend=null;S.msg='';draw()}
+function clearAll(){S.manual=new Set();S.nodes=[];S.edges=[];S.aspa={};S.path=[];S.sel=null;S.pend=null;S.msg='';draw()}
+
+/* ---------- verification (ASPA, draft-ietf-sidrops-aspa-verification) ---------- */
+function verify(){
+ const P=S.path;if(P.length<2)return null;
+ const a=P.slice(0,-1),n=a.length,rc=P[P.length-1],r=rel(rc,a[n-1]);
+ const dir=r==='provider'?'down':'up',o={dir,from:r,v:'valid',why:[],leak:[],fix:[]};
+ const H=i=>hop(a[i],a[i+1]),D=j=>hop(a[j+1],a[j]);
+ const noasp=uniq(a.filter(x=>!S.aspa[x])).map(A).join(', ');
+ if(n===1){o.why.push(`${A(a[0])} originated the route and handed it straight to ${A(rc)}. There is no middle for a leak to happen in.`);return o}
+ if(dir==='up'){
+  let bad=-1,na=0;for(let i=0;i<n-1;i++){const h=H(i);if(h==='NP'&&bad<0)bad=i;if(h==='NA')na=1}
+  o.bad=bad;
+  if(bad>=0){o.v='invalid';o.leak=[a[bad+1]];if(rel(a[bad],a[bad+1])==='provider')o.fix.push([a[bad],a[bad+1]]);
+   o.why.push(`${A(a[bad])} publishes an ASPA that does not list ${A(a[bad+1])} as a provider. So ${A(a[bad])} gave the route to a customer or a peer of its own, and ${A(a[bad+1])} then passed it up toward ${A(rc)}.`,
+   `A route that reaches you from a ${r} may only have climbed customer → provider. One that went down or sideways and then climbed again has made a valley, and that is a route leak.`)}
+  else if(na){o.v='unknown';o.why.push(`No hop is provably wrong, but ${noasp} publish no ASPA, so their hops cannot be checked. Unknown means "cannot tell", not "safe".`)}
+  else o.why.push(`Every hop is authorized: each AS lists the next AS as its provider, so the route only ever climbed. It is valley-free.`);
+  return o}
+ let kx=n-1,kn=n-1,lx=0,ln=0;
+ for(let i=0;i<n-1;i++){const h=H(i);if(h==='NP'&&kx===n-1&&!o._a){kx=i;o._a=1}if(h!=='P'&&kn===n-1&&!o._b){kn=i;o._b=1}}
+ for(let j=n-2;j>=0;j--){const h=D(j);if(h==='NP'&&lx===0&&!o._c){lx=j+1;o._c=1}if(h!=='P'&&ln===0&&!o._d){ln=j+1;o._d=1}}
+ Object.assign(o,{kx,kn,lx,ln});
+ if(lx-kx>=2){o.v='invalid';o.leak=a.slice(kx+1,lx);
+  if(kx<n-1&&rel(a[kx],a[kx+1])==='provider')o.fix.push([a[kx],a[kx+1]]);
+  if(lx>0&&rel(a[lx],a[lx-1])==='provider')o.fix.push([a[lx],a[lx-1]]);
+  o.why.push(`Start from the origin: the route climbs legitimately only up to ${A(a[kx])}${kx<n-1?`, because ${A(a[kx+1])} is not its authorized provider`:''}.`,
+  `Now start from you: the route descends legitimately only from ${A(a[lx])} down to you${lx>0?`, because ${A(a[lx-1])} is not a provider of ${A(a[lx])}`:''}.`,
+  `Because you got this route from a provider, it should look like climb, at most one peer hop, then descend. The valid climb and the valid descent are more than one hop apart, so in between the route went down or sideways and then up again. According to the ASPA records, that valley is the leak, and it happened around ${o.leak.map(A).join(', ')}. Check the warning below to see whether the records agree with the real links.`)}
+ else if(ln-kn>=2){o.v='unknown';o.why.push(`No hop is provably wrong, but ${noasp} publish no ASPA. That leaves a gap in the climb or the descent that cannot be checked.`)}
+ else o.why.push(`The climb up to ${A(a[kx])} and the descent from ${A(a[lx])} meet at the top with at most one peer hop between them. That is the valley-free shape, so it is not a leak.`);
+ return o}
+
+function truth(){
+ const P=S.path;let down=false;
+ for(let i=0;i<P.length-1;i++){const r=rel(P[i],P[i+1]);
+  if(down&&(r==='provider'||r==='peer'))return{ok:false,who:P[i]};
+  if(r==='peer'||r==='customer')down=true}
+ return{ok:true}}
+
+/* ---------- rendering ---------- */
+const MODES=[['select','Move / select'],['as','Add AS'],['c2p','Provider link'],['p2p','Peer link'],['path','Build path'],['del','Delete']];
+function hint(){const m=S.mode;
+ return S.msg?`<b>${S.msg}</b>`:{select:'Drag an AS to move it. Click one to edit its ASPA record.',as:'Click empty space to place a new AS.',
+ c2p:S.pend?`Now click the <b>provider</b> of ${A(S.pend)}.`:'Click the <b>customer</b> first, then the provider it buys transit from.',
+ p2p:S.pend?`Now click the second peer of ${A(S.pend)}.`:'Click two ASes to make them peers.',
+ path:'Click ASes in order: the <b>origin</b> first, and the AS that <b>receives</b> the route (you) last. Each step must follow a link.',
+ del:'Click an AS or a link to remove it.'}[m]}
+function chrome(){
+ $('#tb').innerHTML=MODES.map(([k,t])=>`<button data-m="${k}" aria-pressed="${S.mode===k}">${t}</button>`).join('')+'<button data-pr="_">Clear all</button>';
+ $('#hint').innerHTML=hint()}
+function line(a,b,sh){const p=N(a),q=N(b),dx=q.x-p.x,dy=q.y-p.y,d=Math.hypot(dx,dy)||1,ux=dx/d,uy=dy/d;return`x1="${p.x+ux*sh}" y1="${p.y+uy*sh}" x2="${q.x-ux*sh}" y2="${q.y-uy*sh}"`}
+function drawSvg(v){
+ const P=S.path,leak=new Set(v?v.leak.concat([]):[]),g=truth();
+ let h='<defs><marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path class="ar" d="M0 0L10 5L0 10z"/></marker><marker id="a2" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path class="arp" d="M0 0L10 5L0 10z"/></marker></defs>';
+ S.edges.forEach((e,i)=>{const l=line(e.a,e.b,e.t==='c2p'?26:24);
+  h+=`<line class="ed ${e.t==='p2p'?'pe':''}" ${l} ${e.t==='c2p'?'marker-end="url(#a1)"':''}/><line class="hit" data-e="${i}" ${l}/>`});
+ for(let i=0;i<P.length-1;i++)h+=`<line class="pth" ${line(P[i],P[i+1],i?0:0)} marker-end="url(#a2)"/>`;
+ for(let i=0;i<P.length-1;i++){const p=N(P[i]),q=N(P[i+1]);h+=`<g class="sb" transform="translate(${(p.x+q.x)/2} ${(p.y+q.y)/2})"><title>Step ${i+1}: ${A(P[i])} announces to ${A(P[i+1])}</title><circle r="12"/><text>${i+1}</text></g>`}
+ S.nodes.forEach(n=>{const c=['nd'];if(!S.aspa[n.asn])c.push('noaspa');if(S.sel===n.asn)c.push('sel');if(leak.has(n.asn))c.push('leak');
+  const ix=P.indexOf(n.asn),tag=ix<0?'':`#${ix+1} ${ix===0?'origin':ix===P.length-1&&P.length>1?'receiver':''}`.trim();
+  h+=`<g class="${c.join(' ')}" data-n="${n.asn}" transform="translate(${n.x} ${n.y})"><circle class="r" r="31"/><circle class="b" r="24"/><text class="n">${n.asn}</text>${tag?`<text class="t" y="44">${tag}</text>`:''}</g>`});
+ svg.innerHTML=h}
+function chip(x){return x==='P'?'<span class="y">✓ yes</span>':x==='NP'?'<span class="n">✗ no</span>':'<span class="u">? no ASPA</span>'}
+const RW={provider:'up (customer → provider)',peer:'sideways (peers)',customer:'down (provider → customer)'};
+function drawPath(){
+ const P=S.path;
+ $('#pathbox').innerHTML=`<h3>Route path</h3>`+(P.length?`<div class="chips">${P.map((x,i)=>`<span class="chip">#${i+1} ${A(x)}</span>${i<P.length-1?'→':''}`).join('')}</div><p class="note">Origin is ${A(P[0])}${P.length>1?`. ${A(P[P.length-1])} is the receiver being checked.`:'. Add the receiver last.'}</p><div class="row"><button class="sm" id="undo">Undo last</button><button class="sm" id="clr">Clear path</button></div>`:'<p class="note">No path yet. Click ASes after choosing <b>Build path</b>, or type the numbers below.</p>')+`<div class="row" style="margin-top:8px"><input type="text" id="ptxt" aria-label="Path as AS numbers" placeholder="Origin first, e.g. 200, 100, 300" value="${P.join(', ')}"><button class="sm" id="setp">Set path</button></div>`}
+function setPath(){
+ const ids=($('#ptxt').value.match(/\d+/g)||[]).map(Number);
+ if(ids.length<2){S.msg='Type at least two AS numbers, origin first.';draw();return}
+ for(let i=0;i<ids.length;i++){
+  if(!N(ids[i])){S.msg=`AS${ids[i]} does not exist. Add it first.`;draw();return}
+  if(ids.indexOf(ids[i])!==i){S.msg=`AS${ids[i]} appears twice. Paths here cannot loop.`;draw();return}
+  if(i&&!rel(ids[i-1],ids[i])){S.msg=`AS${ids[i-1]} and AS${ids[i]} are not linked. Add a link first.`;draw();return}}
+ S.msg='';S.path=ids;draw()}
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='ptxt')setPath()});
+function drawVerdict(v){
+ const el=$('#verdict'),P=S.path;
+ if(!v){el.innerHTML='<h3>Verdict</h3><p class="note">Build a path of at least two ASes to see whether it is a route leak.</p>';return}
+ if(!v.from){el.innerHTML='<h3>Verdict</h3><p class="note">The last two ASes are not linked. Add a link between them first.</p>';return}
+ const a=P.slice(0,-1),g=truth(),rc=P[P.length-1];
+ const T={valid:'Valid',invalid:'Invalid: route leak',unknown:'Unknown'};
+ let ex='';
+ if(!g.ok&&v.v==='invalid')ex='ASPA caught a real leak.';
+ else if(!g.ok)ex=v.v==='unknown'?'The leak is real, but ASPA cannot prove it because some ASes publish no ASPA (dashed rings). ASPA only convicts what it can verify. <button class="sm" id="pubAll">Publish ASPA for every AS</button>':'The leak is real but ASPA says Valid. The records may list providers that should not be there.';
+ else if(v.v==='invalid')ex='The business links show no leak, so an ASPA record is wrong (a provider is missing from someone\'s list).';
+ else ex='ASPA and the real links agree.';
+ el.innerHTML=`<h3>Verdict at ${A(rc)}</h3><span class="badge v-${v.v}">${T[v.v]}</span>
+ <p class="note">${A(rc)} learned this from <b>${A(a[a.length-1])}</b>, its <b>${v.from}</b>, so the <b>${v.dir==='down'?'downstream (from provider)':'upstream (from customer or peer)'}</b> check applies.</p>
+ ${v.why.map(t=>`<p>${t}</p>`).join('')}${v.fix.length?`<div class="gt" style="border-color:var(--bad)"><b>Record mismatch:</b> ${v.fix.map(([o,p])=>`${A(o)}'s ASPA does not list ${A(p)}, but the drawn link says ${A(p)} really is ${A(o)}'s provider`).join('; ')}. If that link is right, the record is the problem and this verdict is a false alarm. Select ${A(v.fix[0][0])} and tick ${A(v.fix[0][1])}, or press "Reset to real providers".</div>`:''}
+ <div class="gt"><b>Real business links:</b> ${g.ok?'the route follows customer → provider → peer → provider → customer rules. No leak.':`${A(g.who)} sent a route it learned from a provider or peer on to another provider or peer. That is the leak.`}<br>${ex}</div>`}
+const recsOK=()=>{const r={};S.nodes.forEach(n=>r[n.asn]=new Set(provs(n.asn)));return r};
+function under(rec){const o=S.aspa;S.aspa=rec;const v=verify();S.aspa=o;return v}
+const VB=v=>`<span class="vb v-${v}">${{valid:'Valid',invalid:'Invalid',unknown:'Unknown'}[v]}</span>`;
+function drawAspa(v){
+ const el=$('#aspa'),P=S.path,head='<h2>How ASPA is contributing to this verdict</h2>';
+ if(!v||!v.from){el.innerHTML=head+'<p class="note">Build a path of at least two ASes (the last two linked) and this section walks through exactly what ASPA checks, which records it uses and what each result proves.</p>';return}
+ const a=P.slice(0,-1),n=a.length,rc=P[P.length-1],nb=a[n-1],up=v.dir==='up',g=truth();
+ const intro=`<p class="note" style="max-width:100ch">ASPA (Autonomous System Provider Authorization) lets every AS publish, in a signed RPKI object, the list of ASes that are allowed to receive its routes as its <b>providers</b>. A router uses those lists to test each hop of the AS path. A hop that goes to an AS missing from the sender's list means the route was sent to a customer or peer, and that is what makes a valley visible.</p>`;
+ if(n===1){el.innerHTML=head+intro+`<p>${A(a[0])} is both the origin and the neighbor of ${A(rc)}. There are no hops in the AS path, so ASPA has nothing to check and the route is accepted.</p>`;return}
+ const s1=up?`${A(rc)} received the route from ${A(nb)}, its <b>${v.from}</b>. A route from a customer or a peer must have travelled <b>only upward</b> (customer → provider) from the origin, so ASPA applies the <b>upstream procedure</b>. Every hop has to be authorized.`
+  :`${A(rc)} received the route from ${A(nb)}, its <b>provider</b>. Such a route may have climbed, crossed at most one peer link and then descended, so ASPA applies the <b>downstream procedure</b>. It finds the longest provable climb from the origin and the longest provable descent toward you, and checks that they meet at the top.`;
+ const recs=a.map(x=>{const r=S.aspa[x];return`<li><b>${A(x)}</b>: ${r?`publishes an ASPA listing ${r.size?[...r].map(A).join(', '):'no providers (an empty list)'}`:'<span class="u">publishes no ASPA</span>, so every hop it sent is unverifiable'}</li>`}).join('');
+ let qs='';
+ for(let i=0;i<n-1;i++){qs+=`<li>${A(a[i])} → ${A(a[i+1])}: is ${A(a[i+1])} a provider of ${A(a[i])}? Answer from ${A(a[i])}'s record: ${chip(hop(a[i],a[i+1]))}`+(up?'':`<br>and is ${A(a[i])} a provider of ${A(a[i+1])}? Answer from ${A(a[i+1])}'s record: ${chip(hop(a[i+1],a[i]))}`)+'</li>'}
+ let strip='',rule='';
+ if(up){strip=a.map((x,i)=>{const h=i<n-1?hop(x,a[i+1]):'';return`<span class="nc ${h==='P'?'g':h==='NP'?'r':''}">${A(x)}</span>${i<n-1?`<span>${chip(h)}</span>`:''}`}).join('');
+  rule=v.bad>=0?`The hop ${A(a[v.bad])} → ${A(a[v.bad+1])} is <span class="n">Not Provider+</span>. In the upstream procedure one such hop makes the whole path <b>Invalid</b>.`:v.v==='unknown'?`No hop is Not Provider+, but at least one hop has <span class="u">No Attestation</span>. A route cannot be called Valid with unchecked hops, so the result is <b>Unknown</b>.`:'All hops are Provider+, so the path is <b>Valid</b>.'}
+ else{strip=a.map((x,i)=>{const u=i<=v.kx,d=i>=v.lx;return`<span class="nc ${u||d?'g':'r'}">${A(x)}<small>${u&&d?'climb and descent':u?'on the climb':d?'on the descent':'covered by neither'}</small></span>`}).join('');
+  const gap=v.lx-v.kx;
+  rule=`Longest provable climb: ${A(a[0])} up to ${A(a[v.kx])}. Longest provable descent: ${A(a[v.lx])} down to ${A(rc)}. They may leave at most one hop between them (the peer link at the top). Here the gap is <b>${gap}</b> hop${gap===1?'':'s'}.`+(gap>=2?' That is too many, so the path is <b>Invalid</b>.':v.v==='unknown'?` Counting missing records as failures the gap would be ${v.ln-v.kn}, which is too many, but a missing record is not proof of a leak, so the result is <b>Unknown</b>.`:' That is within the limit, so the path is <b>Valid</b>.')}
+ const out={valid:'The router accepts the route normally.',invalid:'The router should reject the route (drop it), because ASPA has proof the path breaks valley-free routing.',unknown:'The router cannot prove it either way. Usually it accepts the route but may prefer a verified one.'}[v.v];
+ const n0=under({}),n1=under(recsOK());
+ el.innerHTML=head+intro+`<ol class="steps">
+ <li><h3>Choose the procedure</h3><p>${s1}</p></li>
+ <li><h3>Collect the ASPA records</h3><ul>${recs}</ul><p class="note">${A(rc)}'s own relationship with ${A(nb)} comes from its local configuration, not from an ASPA.</p></li>
+ <li><h3>Ask the hop questions</h3><p class="note">${up?'Each hop is tested once, using the record of the AS that sent the route.':'Each hop is tested twice: once as a possible step up (sender\'s record) and once as a possible step down (receiver\'s record). The up answers build the climb and the down answers build the descent.'}</p><ul>${qs}</ul></li>
+ <li><h3>Apply the rule</h3><div class="strip">${strip}</div><p>${rule}</p></li>
+ <li><h3>Verdict and action</h3><p>${VB(v.v)} ${out}</p></li>
+ <li><h3>What ASPA adds here</h3><ul>
+ <li><b>Plain BGP:</b> the router has no way to see a leak, so it accepts the route.</li>
+ <li><b>Origin validation (ROV/ROA):</b> checks only that ${A(a[0])} may originate the prefix. It says nothing about the path in between, so it would not notice this leak.</li>
+ <li><b>ASPA with the records you have now:</b> ${VB(v.v)}</li>
+ <li><b>If no AS published an ASPA:</b> ${VB(n0.v)} <span class="note">No records, no evidence.</span></li>
+ <li><b>If every AS published a correct ASPA:</b> ${VB(n1.v)} <span class="note">${g.ok?(n1.v==='valid'?'Correct records agree with the real links.':'The real links show no leak.'):(n1.v==='invalid'?'Full adoption would catch this real leak.':'ASPA still misses this leak.')}</span></li>
+ <li><b>Real business links:</b> ${g.ok?'no leak':`leak by ${A(g.who)}`}</li></ul>
+ <p class="note">ASPA only describes customer-to-provider relationships. It is strongest when many networks publish accurate records, and a wrong or missing record weakens or misleads it.</p></li></ol>`}
+function drawEd(){
+ const a=S.sel,el=$('#ed');
+ if(!a||!N(a)){el.innerHTML='<h3>ASPA record</h3><p class="note">Pick <b>Move / select</b> and click an AS to edit the providers it lists.</p>';return}
+ const r=S.aspa[a];
+ el.innerHTML=`<h3>${A(a)} ASPA record</h3><label><input type="checkbox" id="pub" ${r?'checked':''}> This AS publishes an ASPA</label>`+
+ (r?`<p class="note">Tick the ASes this network authorizes as its providers. An empty list says "I have no providers" (a Tier-1 does this).</p>`+
+  S.nodes.filter(n=>n.asn!==a).map(n=>`<label><input type="checkbox" data-p="${n.asn}" ${r.has(n.asn)?'checked':''}> ${A(n.asn)}</label>`).join('')+
+  `<p class="note">Real providers in the diagram: ${provs(a).map(A).join(', ')||'none'}.</p><button class="sm" id="sync">Reset to real providers</button>`
+  :'<p class="note">With no record, nobody can tell who this AS buys transit from, so its hops come out as unknown.</p>')}
+function draw(){chrome();const v=verify();drawSvg(v);drawPath();drawVerdict(v);drawAspa(v);drawEd()}
+
+/* ---------- interaction ---------- */
+function pt(e){const p=svg.createSVGPoint();p.x=e.clientX;p.y=e.clientY;return p.matrixTransform(svg.getScreenCTM().inverse())}
+function link(a,b,t){S.msg='';if(a===b)return;if(rel(a,b)){S.msg='Those two ASes are already linked.';return}S.edges.push({a,b,t});if(t==='c2p'&&S.aspa[a]&&!S.manual.has(a))S.aspa[a].add(b)}
+function nodeDown(id,e){const m=S.mode;S.msg='';
+ if(m==='select'){S.sel=id;const p=pt(e),n=N(id);drag={id,dx:n.x-p.x,dy:n.y-p.y}}
+ else if(m==='c2p'||m==='p2p'){if(S.pend==null)S.pend=id;else{link(S.pend,id,m);S.pend=null}}
+ else if(m==='path'){const P=S.path;
+  if(P.includes(id))S.msg=`${A(id)} is already on the path.`;
+  else if(P.length&&!rel(P[P.length-1],id))S.msg=`${A(P[P.length-1])} and ${A(id)} are not linked. Add a link first.`;
+  else P.push(id)}
+ else if(m==='del'){S.nodes=S.nodes.filter(n=>n.asn!==id);S.edges=S.edges.filter(x=>x.a!==id&&x.b!==id);delete S.aspa[id];Object.values(S.aspa).forEach(s=>s.delete(id));
+  const i=S.path.indexOf(id);if(i>=0)S.path=S.path.slice(0,i);if(S.sel===id)S.sel=null}
+ draw()}
+svg.addEventListener('pointerdown',e=>{
+ const g=e.target.closest('[data-n]'),l=e.target.closest('[data-e]');
+ if(g)return nodeDown(+g.dataset.n,e);
+ S.msg='';
+ if(l&&S.mode==='del'){const x=S.edges.splice(+l.dataset.e,1)[0];if(x.t==='c2p'&&S.aspa[x.a]&&!S.manual.has(x.a))S.aspa[x.a].delete(x.b);S.path=[];draw();return}
+ if(S.mode==='as'){const p=pt(e),inp=$('#asn'),w=Math.floor(+inp.value);let id=nextAsn();
+  if(inp.value){if(w>0&&!N(w)){id=w;inp.value=''}else{S.msg=`AS${w} is not valid or already exists. Pick another number.`;draw();return}}
+  S.nodes.push({asn:id,x:Math.round(p.x),y:Math.round(p.y)});S.aspa[id]=new Set()}
+ else if(S.mode==='select')S.sel=null;
+ S.pend=null;draw()});
+window.addEventListener('pointermove',e=>{if(!drag)return;const p=pt(e),n=N(drag.id);n.x=Math.max(30,Math.min(870,p.x+drag.dx));n.y=Math.max(30,Math.min(500,p.y+drag.dy));draw()});
+window.addEventListener('pointerup',()=>drag=null);
+document.addEventListener('click',e=>{const t=e.target;
+ if(t.dataset.pr==='_')clearAll()
+ else if(t.dataset.m){S.mode=t.dataset.m;S.pend=null;S.msg='';draw()}
+ else if(t.id==='undo'){S.path.pop();draw()}
+ else if(t.id==='clr'){S.path=[];draw()}
+ else if(t.id==='sync'){S.aspa[S.sel]=new Set(provs(S.sel));S.manual.delete(S.sel);draw()}
+ else if(t.id==='pubAll'){S.nodes.forEach(n=>{if(!S.aspa[n.asn]){S.aspa[n.asn]=new Set(provs(n.asn));S.manual.delete(n.asn)}});draw()}
+ else if(t.id==='setp')setPath()});
+$('#ed').addEventListener('change',e=>{const t=e.target,a=S.sel;
+ if(t.id==='pub'){t.checked?S.aspa[a]=new Set(provs(a)):delete S.aspa[a];S.manual.add(a)}
+ else if(t.dataset.p){const p=+t.dataset.p;t.checked?S.aspa[a].add(p):S.aspa[a].delete(p);S.manual.add(a)}
+ draw()});
+load('leak');
+</script>
+</body>
+</html>
